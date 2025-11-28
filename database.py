@@ -23,9 +23,9 @@ class Database:
             return __row
         return __df[column_name]
 
-    def set_row(self, table_name, data): # Функция добавляющая нового клиента
+    def set_row(self, table_name, data, call_function=True): # Функция добавляющая нового клиента
         __new_row = pd.DataFrame(data)
-        print(__new_row)
+        print('DataFrame: ', __new_row)
         __index = self.__tables_names.index(table_name)
         __df = self.__dfs[__index]
         __df = pd.concat([__df, __new_row], ignore_index=True)
@@ -35,12 +35,13 @@ class Database:
         except SQLAlchemyError as e:
             print(f'ОШИБКА при попытке записи в таблицу {table_name}:', e.args[0][43:])
 
-        with self.__engine.connect() as conn: # Вызов SQL-функции для правильного нумерования индексов
-            conn.execute(sqlalchemy.text('SELECT renumber_client_ids();'))
-            conn.commit()
+        if call_function:
+            with self.__engine.connect() as conn: # Вызов SQL-функции для правильного нумерования индексов
+                conn.execute(sqlalchemy.text(f'SELECT renumber_{table_name}_ids();'))
+                conn.commit()
 
 if __name__ == "__main__":
     db = Database()
-    print(db.get_row('client', 'login'))
+    print(db.get_row('client', 'login', 'Andrey@mail.ru').values[0])
     # db.set_row('client', 'Andrey@mail.ru', '0987654', 'andrey')
 

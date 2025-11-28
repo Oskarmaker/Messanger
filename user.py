@@ -8,12 +8,10 @@ import hashlib
 
 class User:
     def __init__(self):
-        self.login = None
-        self.__password_hash = None
-        self.connection = None
-        self.id = 'I'
         self.SERVER_HOST, self.SERVER_PORT = "127.0.0.1", 8000
         self.__go = True
+        self.__user_inf = None
+
 
     def login_(self, login, password_hash):
         self.login = login
@@ -21,20 +19,19 @@ class User:
         self.connection.sendall(b'l')
         time.sleep(1)
         self.connection.sendall(f'{login}|{password_hash}'.encode())
-        data = self.connection.recv(1024)
-        if data == b'1':
-            return 1
-        elif data == b'2':
-            return 2
-        elif data == b'3':
-            return 3
+        data = json.loads(self.connection.recv(1024))
+        if data[0] == '1':
+            print("Успешный вход")
+            self.__user_inf = data[1]
+            print(self.__user_inf)
+        else:
+            print(data[0])
 
     def connect(self):
         self.connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.connection.connect((self.SERVER_HOST, self.SERVER_PORT))
         self.connection.sendall(b'1')
         self.SERVER_PORT = int(self.connection.recv(1024).decode()) # Возможно добавления функции кодирования и декодирования сообщения, сообщение новый свободный порт на сервере
-        # print(self.SERVER_PORT)
         if self.SERVER_PORT is None:
             raise Exception('Все порты сервера заняты и он не может присвоить вам порт')
         else:
@@ -44,20 +41,43 @@ class User:
             self.connection.connect((self.SERVER_HOST, self.SERVER_PORT))
             return None
 
-    def send_message(self):
-        message = Message("Hello", self.id, "Friend") # В будущем планируется каждому пользователю присваивать уникальный id и вводить его в поля sender и recipient
-        self.connection.sendall(message.text)
+    def create_chat(self, chat_name):
+        self.connection.sendall(b'ch')
+        time.sleep(1)
+        self.connection.sendall(f'{chat_name}'.encode())
+        if self.connection.recv(1024) == b'cc':
+            print('Чат успешно создан')
+            return True
+        return None
+
+    def send_message(self, text, chat_id):
+        message = Message(text, self.__user_inf[0], chat_id) # В будущем планируется каждому пользователю присваивать уникальный id и вводить его в поля sender и recipient
+        self.connection.sendall(b'm')
+        time.sleep(1)
+        self.connection.sendall(json.dumps(message.__dict__).encode())
 
     def registration(self, login, password_hash, user_name):
         print(f'|{login}|{password_hash}|{user_name}')
         self.connection.sendall(b'r')
         time.sleep(1)
         self.connection.sendall(f'{login}|{password_hash}|{user_name}'.encode())
+        data = json.loads(self.connection.recv(1024))
+        if data[0] == '1':
+            print("Успешная регистрация")
+            self.__user_inf = data[1]
+            print(self.__user_inf)
+        else:
+            print(data[0])
 
     def disconnect(self):
         print('Ну я пытался')
         self.connection.sendall(b'e')
         self.connection.close()
+
+    def create_new_friend(self, username):
+        self.connection.sendall(b'cf')
+        time.sleep(1)
+        self.connection.sendall(username.encode())
 
     def get_chats(self):
         self.connection.sendall(b'c')
@@ -65,11 +85,23 @@ class User:
         data = json.loads(data_json)
         return data
 
+    def add_to_chat(self, new_users, chat_name):
+        self.connection.sendall(b'atc')
+        time.sleep(1)
+        self.connection.sendall(chat_name)
+        self.connection.sendall(json.dumps(new_users))
+
 
 if __name__ == "__main__":
-    user = User()
-    user.connect()
-    # user.registration('mymail@mail.ru', hashlib.sha256(b'password').hexdigest(), 'myname')
-    # user.login_('mymail@mail.ru', hashlib.sha256(b'password').hexdigest())
-    user.get_chats()
-    user.disconnect()
+    try:
+        user = User()
+        user.connect()
+        # user.registration('mymail@mail.ru', hashlib.sha256(b'password').hexdigest(), 'myname')
+        user.login_('mymail@mail.ru', hashlib.sha256(b'password').hexdigest())
+        user.create_new_friend('alexey')
+        user.get_chats()
+        user.disconnect()
+    except Exception as e:
+        if 'user' in globals():
+            user.disconnect()
+        print(e)
