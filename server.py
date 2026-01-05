@@ -1,6 +1,7 @@
 import socket
 from client import Client
 import threading
+import json
 
 
 def next_free_port(port=1024, max_port=65535 ):
@@ -25,8 +26,8 @@ class Server:
         self.__connection.listen()
         self.__conn, self.__addr = self.__connection.accept()
         with self.__conn:
-            __data = self.__conn.recv(1024)
-            if __data == b'1':
+            __data = json.loads(self.__conn.recv(1024))
+            if __data['flag'] == '1':
                 print(f'Connection by {self.__addr}')
                 print(f'Message received: {__data}')
                 __new_port = next_free_port()

@@ -22,41 +22,40 @@ class Client:
         try:
             with self.__conn:
                 while True:
-                    __data = self.__conn.recv(1024)
-                    if __data != b'':
+                    __data = json.loads(self.__conn.recv(1024))
+                    if __data['flag'] != '':
                         print(__data)
-                        if __data == b'r':
-                            self.__conn.sendall(self.registration())
-                        elif __data == b'l':
-                            self.__conn.sendall(self.login())
-                        elif __data == b'e':
-                            self.__connection.close()
-                        elif __data == b'c':
-                            self.__conn.sendall(json.dumps(self.get_chats().tolist()).encode())
-                        elif __data == b'm':
-                            self.send_message()
-                        elif __data == b'ch':
-                            self.create_chat()
-                        elif __data == b'cf':
-                            self.create_new_friend()
-                        elif __data == b'atc':
-                            self.add_to_chat()
+                        if __data['flag'] == 'r':
+                            self.__conn.sendall(self.registration(__data['msg']))  # Регистрация
+                        elif __data['flag'] == 'l':
+                            self.__conn.sendall(self.login(__data['msg']))  # Авторизация
+                        elif __data['flag'] == 'e':
+                            self.__connection.close()  # Закрытие соеденения
+                        elif __data['flag'] == 'c':
+                            self.__conn.sendall(json.dumps(self.get_chats().tolist()).encode())  # Получить список чатов
+                        elif __data['flag'] == 'm':
+                            self.send_message(__data['msg'])  # Отправить сообщение
+                        elif __data['flag'] == 'ch':
+                            self.create_chat(__data['msg'])  # Создать чат
+                        elif __data['flag'] == 'cf':
+                            self.create_new_friend(__data['msg'])  # Добавить друга
+                        elif __data['flag'] == 'atc':
+                            self.add_to_chat(__data['msg'])  # Добавить человека в чат
         except Exception as e:
             self.__connection.close()
             print(e)
 
-    def send_message(self):
-        __message = json.loads(self.__conn.recv(1024).decode())
-        self.__db.set_row("", )
+    def send_message(self, __data):
+        __message = __data
+        self.__db.set_row(__message, )
 
-    def create_chat(self):
-        __chat_name = self.__conn.recv(1024).decode()
+    def create_chat(self, __data):
+        __chat_name = __data
         self.__db.set_row("chat", {'name': [__chat_name]})
         self.__conn.sendall(b'cc')
 
-    def add_to_chat(self):
-        __chat_name = self.__conn.recv(1024).decode()
-        __users = json.loads(self.__conn.recv(1024).decode())
+    def add_to_chat(self, __data):
+        __chat_name, __users = __data
         for __user in __users:
             __row_client = self.__db.get_row("client", "username", __user)
             __row_chat = self.__db.get_row("chat", "name", __chat_name)
@@ -66,8 +65,8 @@ class Client:
                 self.__db.set_row("chat_client",
                                   {'chat_id': [__row_chat[0]], 'client_id': [__row_client[0]]}, False)
 
-    def create_new_friend(self):
-        __username = self.__conn.recv(1024).decode()
+    def create_new_friend(self, __data):
+        __username = __data
         print(__username)
         print(self.__db.get_row("client", "user_name", __username).values)
         __row_client = self.__db.get_row("client", "user_name", __username)
@@ -89,8 +88,8 @@ class Client:
         return self.__db.get_row('chat', 'name').values
 
 
-    def login(self):
-        __login, __password_hash = self.__conn.recv(1024).decode().split('|')
+    def login(self, __data):
+        __login, __password_hash = __data.split('|')
         __row = self.__db.get_row('client', 'login', __login)
         if __row.empty:
             return json.dumps('Пользователя с данным логином не найдено').encode()
@@ -101,8 +100,8 @@ class Client:
             self.__row = __row.values[0]
             return json.dumps(data).encode()
 
-    def registration(self):
-        __login, __password_hash, __user_name = self.__conn.recv(1024).decode().split('|')
+    def registration(self, __data):
+        __login, __password_hash, __user_name = __data.split('|')
         if not self.__db.get_row('client', 'login', __login).empty:
             return 'Данный логин уже существует'.encode()
         elif not self.__db.get_row('client', 'user_name', __user_name).empty:

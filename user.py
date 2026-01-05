@@ -2,6 +2,7 @@ import json
 import socket
 import time
 
+from messageDTO import MessageDTO
 from message import Message
 import hashlib
 
@@ -16,9 +17,7 @@ class User:
     def login_(self, login, password_hash):
         self.login = login
         self.__password_hash = password_hash
-        self.connection.sendall(b'l')
-        time.sleep(1)
-        self.connection.sendall(f'{login}|{password_hash}'.encode())
+        self.connection.sendall(json.dumps(MessageDTO('l', f'{login}|{password_hash}').__dict__).encode())
         data = json.loads(self.connection.recv(1024))
         if data[0] == '1':
             print("Успешный вход")
@@ -30,8 +29,8 @@ class User:
     def connect(self):
         self.connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.connection.connect((self.SERVER_HOST, self.SERVER_PORT))
-        self.connection.sendall(b'1')
-        self.SERVER_PORT = int(self.connection.recv(1024).decode()) # Возможно добавления функции кодирования и декодирования сообщения, сообщение новый свободный порт на сервере
+        self.connection.sendall(json.dumps(MessageDTO('1', '').__dict__).encode())
+        self.SERVER_PORT = int(self.connection.recv(1024).decode())  # Возможно добавления функции кодирования и декодирования сообщения, сообщение новый свободный порт на сервере
         if self.SERVER_PORT is None:
             raise Exception('Все порты сервера заняты и он не может присвоить вам порт')
         else:
@@ -42,9 +41,7 @@ class User:
             return None
 
     def create_chat(self, chat_name):
-        self.connection.sendall(b'ch')
-        time.sleep(1)
-        self.connection.sendall(f'{chat_name}'.encode())
+        self.connection.sendall(json.dumps(MessageDTO('ch', f'{chat_name}').__dict__).encode())
         if self.connection.recv(1024) == b'cc':
             print('Чат успешно создан')
             return True
@@ -52,15 +49,12 @@ class User:
 
     def send_message(self, text, chat_id):
         message = Message(text, self.__user_inf[0], chat_id) # В будущем планируется каждому пользователю присваивать уникальный id и вводить его в поля sender и recipient
-        self.connection.sendall(b'm')
+        self.connection.sendall(json.dumps(MessageDTO('m', message).__dict__).encode())
         time.sleep(1)
-        self.connection.sendall(json.dumps(message.__dict__).encode())
 
     def registration(self, login, password_hash, user_name):
         print(f'|{login}|{password_hash}|{user_name}')
-        self.connection.sendall(b'r')
-        time.sleep(1)
-        self.connection.sendall(f'{login}|{password_hash}|{user_name}'.encode())
+        self.connection.sendall(json.dumps(MessageDTO('r', f'{login}|{password_hash}|{user_name}').__dict__).encode())
         data = json.loads(self.connection.recv(1024))
         if data[0] == '1':
             print("Успешная регистрация")
@@ -71,22 +65,20 @@ class User:
 
     def disconnect(self):
         print('Ну я пытался')
-        self.connection.sendall(b'e')
+        self.connection.sendall(json.dumps(MessageDTO('e', '').__dict__).encode())
         self.connection.close()
 
     def create_new_friend(self, username):
-        self.connection.sendall(b'cf')
-        time.sleep(1)
-        self.connection.sendall(username.encode())
+        self.connection.sendall(json.dumps(MessageDTO('cf', username).__dict__).encode())
 
     def get_chats(self):
-        self.connection.sendall(b'c')
+        self.connection.sendall(json.dumps(MessageDTO('c', '').__dict__).encode())
         data_json = self.connection.recv(1024).decode()
         data = json.loads(data_json)
         return data
 
     def add_to_chat(self, new_users, chat_name):
-        self.connection.sendall(b'atc')
+        self.connection.sendall(json.dumps(MessageDTO('atc', [new_users, chat_name]).__dict__).encode())
         time.sleep(1)
         self.connection.sendall(chat_name)
         self.connection.sendall(json.dumps(new_users))
